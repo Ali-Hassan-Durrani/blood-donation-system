@@ -1,0 +1,232 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model audit_logs {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actor_user_id String?  @db.Uuid
+  action        String   @db.VarChar(120)
+  entity_type   String   @db.VarChar(80)
+  entity_id     String?  @db.Uuid
+  meta          Json?
+  ip_address    String?  @db.VarChar(60)
+  created_at    DateTime @default(now()) @db.Timestamptz(6)
+  users         users?   @relation(fields: [actor_user_id], references: [id], onUpdate: NoAction)
+
+  @@index([actor_user_id, created_at], map: "idx_audit_actor_time")
+}
+
+model blood_bank_profiles {
+  user_id    String @id @db.Uuid
+  bank_name  String @db.VarChar(150)
+  license_no String @unique @db.VarChar(80)
+  address    String
+  users      users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model blood_requests {
+  id                                                 String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  requester_user_id                                  String         @db.Uuid
+  requested_for_patient_name                         String?        @db.VarChar(120)
+  blood_group                                        blood_group
+  units_needed                                       Int
+  city                                               String         @db.VarChar(80)
+  needed_on                                          DateTime       @db.Date
+  urgency                                            urgency_level  @default(MEDIUM)
+  status                                             request_status @default(PENDING)
+  assigned_blood_bank_id                             String?        @db.Uuid
+  reason                                             String?
+  created_at                                         DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime       @default(now()) @db.Timestamptz(6)
+  users_blood_requests_assigned_blood_bank_idTousers users?         @relation("blood_requests_assigned_blood_bank_idTousers", fields: [assigned_blood_bank_id], references: [id], onUpdate: NoAction)
+  users_blood_requests_requester_user_idTousers      users          @relation("blood_requests_requester_user_idTousers", fields: [requester_user_id], references: [id], onUpdate: NoAction)
+  donations                                          donations[]
+  fulfillments                                       fulfillments[]
+
+  @@index([blood_group, city], map: "idx_blood_requests_group_city")
+  @@index([status], map: "idx_blood_requests_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model donations {
+  id                                   String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  donor_user_id                        String          @db.Uuid
+  request_id                           String?         @db.Uuid
+  blood_bank_id                        String?         @db.Uuid
+  hospital_id                          String?         @db.Uuid
+  scheduled_on                         DateTime        @db.Timestamptz(6)
+  status                               donation_status @default(SCHEDULED)
+  completed_at                         DateTime?       @db.Timestamptz(6)
+  notes                                String?
+  created_at                           DateTime        @default(now()) @db.Timestamptz(6)
+  users_donations_blood_bank_idTousers users?          @relation("donations_blood_bank_idTousers", fields: [blood_bank_id], references: [id], onUpdate: NoAction)
+  users_donations_donor_user_idTousers users           @relation("donations_donor_user_idTousers", fields: [donor_user_id], references: [id], onUpdate: NoAction)
+  users_donations_hospital_idTousers   users?          @relation("donations_hospital_idTousers", fields: [hospital_id], references: [id], onUpdate: NoAction)
+  blood_requests                       blood_requests? @relation(fields: [request_id], references: [id], onUpdate: NoAction)
+
+  @@index([donor_user_id], map: "idx_donations_donor")
+  @@index([status], map: "idx_donations_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model donor_profiles {
+  user_id            String      @id @db.Uuid
+  blood_group        blood_group
+  date_of_birth      DateTime    @db.Date
+  weight_kg          Decimal     @db.Decimal(5, 2)
+  last_donation_date DateTime?   @db.Date
+  is_available       Boolean     @default(true)
+  medical_notes      String?
+  users              users       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model fulfillments {
+  id               String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  request_id       String         @db.Uuid
+  blood_bank_id    String         @db.Uuid
+  inventory_lot_id String         @db.Uuid
+  units_used       Int
+  fulfilled_at     DateTime       @default(now()) @db.Timestamptz(6)
+  users            users          @relation(fields: [blood_bank_id], references: [id], onUpdate: NoAction)
+  inventory_lots   inventory_lots @relation(fields: [inventory_lot_id], references: [id], onUpdate: NoAction)
+  blood_requests   blood_requests @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([request_id], map: "idx_fulfillments_request")
+}
+
+model hospital_profiles {
+  user_id       String  @id @db.Uuid
+  hospital_name String  @db.VarChar(150)
+  license_no    String  @unique @db.VarChar(80)
+  address       String
+  is_verified   Boolean @default(false)
+  users         users   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model inventory_lots {
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blood_bank_id   String         @db.Uuid
+  blood_group     blood_group
+  units_available Int
+  collected_on    DateTime       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  expires_on      DateTime       @db.Date
+  created_at      DateTime       @default(now()) @db.Timestamptz(6)
+  fulfillments    fulfillments[]
+  users           users          @relation(fields: [blood_bank_id], references: [id], onUpdate: NoAction)
+
+  @@index([blood_bank_id, blood_group], map: "idx_inventory_bank_group")
+  @@index([expires_on], map: "idx_inventory_expiry")
+}
+
+model notifications {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  title      String   @db.VarChar(150)
+  message    String
+  is_read    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, is_read], map: "idx_notifications_user_read")
+}
+
+model seeker_profiles {
+  user_id           String  @id @db.Uuid
+  identity_cnic     String? @db.VarChar(30)
+  emergency_contact String? @db.VarChar(25)
+  users             users   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model test_table_check {
+  id   Int     @id @default(autoincrement())
+  name String?
+}
+
+model contact_messages {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String   @db.VarChar(120)
+  email      String   @db.VarChar(120)
+  message    String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                                                          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role                                                        user_role
+  full_name                                                   String               @db.VarChar(120)
+  email                                                       String               @unique @db.VarChar(200)
+  phone                                                       String               @db.VarChar(25)
+  password_hash                                               String
+  city                                                        String               @db.VarChar(80)
+  is_active                                                   Boolean              @default(true)
+  created_at                                                  DateTime             @default(now()) @db.Timestamptz(6)
+  updated_at                                                  DateTime             @default(now()) @db.Timestamptz(6)
+  audit_logs                                                  audit_logs[]
+  blood_bank_profiles                                         blood_bank_profiles?
+  blood_requests_blood_requests_assigned_blood_bank_idTousers blood_requests[]     @relation("blood_requests_assigned_blood_bank_idTousers")
+  blood_requests_blood_requests_requester_user_idTousers      blood_requests[]     @relation("blood_requests_requester_user_idTousers")
+  donations_donations_blood_bank_idTousers                    donations[]          @relation("donations_blood_bank_idTousers")
+  donations_donations_donor_user_idTousers                    donations[]          @relation("donations_donor_user_idTousers")
+  donations_donations_hospital_idTousers                      donations[]          @relation("donations_hospital_idTousers")
+  donor_profiles                                              donor_profiles?
+  fulfillments                                                fulfillments[]
+  hospital_profiles                                           hospital_profiles?
+  inventory_lots                                              inventory_lots[]
+  notifications                                               notifications[]
+  seeker_profiles                                             seeker_profiles?
+
+  @@index([city], map: "idx_users_city")
+  @@index([role], map: "idx_users_role")
+}
+
+enum blood_group {
+  A_POS  @map("A+")
+  A_NEG  @map("A-")
+  B_POS  @map("B+")
+  B_NEG  @map("B-")
+  AB_POS @map("AB+")
+  AB_NEG @map("AB-")
+  O_POS  @map("O+")
+  O_NEG  @map("O-")
+}
+
+enum donation_status {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum request_status {
+  PENDING
+  APPROVED
+  REJECTED
+  FULFILLED
+  CANCELLED
+}
+
+enum urgency_level {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum user_role {
+  ADMIN
+  DONOR
+  SEEKER
+  BLOOD_BANK
+  HOSPITAL
+}
