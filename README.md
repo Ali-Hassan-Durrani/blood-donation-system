@@ -33,7 +33,5 @@ This project is suitable for **academic purposes**, **FSWD projects**, and **por
 
 ---
 
-## 📂 Project Structure
-
 
 
