@@ -27,5 +27,6 @@ This project is suitable for **academic purposes**, **FSWD projects**, and **por
 - Express.js
 
 ### Database
--PostgreSQL
+- PostgreSQL
+
 ---
