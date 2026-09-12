@@ -1,11 +1,11 @@
-# 🩸 Blood Donation System
+# Blood Donation System
 
 A full-stack **Blood Donation Management System** designed to connect donors, recipients, and blood banks efficiently.  
 This project helps manage blood donations, requests, and donor information in a centralized system.
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
 The **Blood Donation System** aims to:
 - Register and manage blood donors
@@ -17,21 +17,15 @@ This project is suitable for **academic purposes**, **FSWD projects**, and **por
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
-- HTML / CSS / JavaScript  
-  *(or React, if you are using it)*
+- Next.js
 
 ### Backend
 - Node.js
 - Express.js
 
 ### Database
-- MongoDB  
-  *(or MySQL / PostgreSQL — update if different)*
-
+-PostgreSQL
 ---
-
-
-
